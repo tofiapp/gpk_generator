@@ -162,7 +162,8 @@
   table.xl td.sec{text-align:left;background:var(--steel);color:#fff;font-family:'Space Grotesk';
     font-weight:700;font-size:12.5px;letter-spacing:.02em}
   table.xl td.yr{background:#eceadf;font-weight:700}
-  table.xl td.ev{line-height:1.25;font-size:10px}
+  table.xl td.ev{line-height:1.25;font-size:10px;white-space:pre-line;min-width:72px}
+  table.xl td.note{background:#fff;min-height:16px;height:18px;padding:2px 6px}
   table.xl td.r3{background:#f4b0a8}
   table.xl td.r2{background:#f6cfa0}
   table.xl td.r1{background:#f5e9a8}
@@ -249,7 +250,8 @@
   </section>
 
   <div class="foot">
-    V listech kolejí má <strong>každé datum měření vlastní barvu</strong> (jednotnou napříč celou tabulkou).
+    V listech kolejí má každá kilometráž <strong>dva řádky</strong>: nahoře datum a známka, dole prostor na poznámky.
+    Každé datum měření má <strong>vlastní barvu</strong> (jednotnou napříč celou tabulkou).
     V přehledu <em>Změny známek GPK</em> platí barevná škála podle velikosti změny:
     <span class="chip r3">≥ 3</span> <span class="chip r2">≥ 2</span> <span class="chip r1">≥ 1</span>.
     Vše běží lokálně v prohlížeči — žádná data se neodesílají.
@@ -546,17 +548,16 @@ function buildDateColors(){
 }
 function dateHex(date){ if(!date) return null; return DATE_COLORS[fmtDate(date)]||null; }
 function evBg(date){ const h=dateHex(date); return h?` style="background:#${h}"`:''; }
+// horní buňka: datum + známka (dvě řádky textu, barevné pozadí podle data)
 function styEvent(date){const s={font:{name:F,sz:8},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:BORDER};const f=dateHex(date);if(f)s.fill={fgColor:{rgb:f}};return s;}
-// horní buňka (datum) — bez spodního okraje, aby datum+známka tvořily jeden blok
-function styDate(date){const s={font:{name:F,sz:8},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{top:B_THIN,left:B_THIN,right:B_THIN}};const f=dateHex(date);if(f)s.fill={fgColor:{rgb:f}};return s;}
-// spodní buňka (známka) — bez horního okraje
-function styVal(date){const s={font:{name:F,sz:8},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{bottom:B_THIN,left:B_THIN,right:B_THIN}};const f=dateHex(date);if(f)s.fill={fgColor:{rgb:f}};return s;}
 function styEmpty(){return {border:BORDER};}
+// spodní řádek — prázdný prostor na ruční poznámky (bílé pozadí, jen mřížka)
+function styNotes(){return {border:BORDER,fill:{fgColor:{rgb:'FFFFFF'}}};}
 function bgStr(date){const h=dateHex(date);return h?`background:#${h}`:'';}
 function styKm(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'left',vertical:'center'},border:BORDER,fill:{fgColor:{rgb:'FAF8F2'}}};}
 function styYear(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'center',vertical:'center'},border:BORDER,fill:{fgColor:{rgb:'ECEADF'}}};}
 function stySection(){return {font:{name:F,sz:11,bold:true,color:{rgb:'FFFFFF'}},alignment:{horizontal:'left',vertical:'center'},fill:{fgColor:{rgb:'1B2430'}}};}
-function styBlank(){return {border:BORDER};}
+function evText(ev){return fmtDate(ev.date)+'\n'+fmtVal(ev.val);}
 
 function makeSheet(K,koljLabel,summaryRows){
   const {order,groups,years,width,yearStart,totalCols}=K;
@@ -591,14 +592,16 @@ function makeSheet(K,koljLabel,summaryRows){
     });
     html+='</tr>'; rowH[R]=18; R++;
 
-    // data rows — každý úsek = DVA řádky: horní s datem, spodní se známkou.
-    // Popisek "km úsek" je sloučený svisle přes oba řádky, takže patří k celé kilometráži.
+    // data rows — každý úsek = DVA řádky:
+    //   horní: hodnoty (datum + známka v jedné buňce),
+    //   spodní: prázdný prostor na poznámky.
+    // Popisek "km úsek" je sloučený svisle přes oba řádky.
     groups[gc].forEach(row=>{
       const R2=R+1;
       const kmLabel=fmtKm(row.ks)+'–'+fmtKm(row.ke);
       set(R,0,cell(kmLabel,styKm()));
       set(R2,0,cell('',styKm()));
-      merges.push({s:{r:R,c:0},e:{r:R2,c:0}});   // km popisek přes datum i známku
+      merges.push({s:{r:R,c:0},e:{r:R2,c:0}});   // km popisek přes hodnoty i poznámky
       // bucket events by year
       const byYear={};
       row.events.forEach(ev=>{const y=ev.date.getFullYear();(byYear[y]=byYear[y]||[]).push(ev);});
@@ -610,45 +613,53 @@ function makeSheet(K,koljLabel,summaryRows){
         // collect summary entries
         evs.forEach(ev=>{ if(ev.val!=null && ev.val>=1) summaryRows.push({kolej:koljLabel,trat:gc,name,km:kmLabel,date:ev.date,val:ev.val}); });
         if(evs.length===0){
-          // prázdný rok — jeden sloučený blok přes oba řádky i celou šířku roku
+          // prázdný rok — horní prázdná hodnota, spodní poznámky (neslučovat svisle)
           set(R,cstart,cell('',styEmpty()));
           for(let k=1;k<w;k++) set(R,cstart+k,cell('',styEmpty()));
-          set(R2,cstart,cell('',styEmpty()));
-          for(let k=1;k<w;k++) set(R2,cstart+k,cell('',styEmpty()));
-          merges.push({s:{r:R,c:cstart},e:{r:R2,c:cstart+w-1}});
-          topHtml+=`<td class="ev" colspan="${w}" rowspan="2"></td>`;
+          set(R2,cstart,cell('',styNotes()));
+          for(let k=1;k<w;k++) set(R2,cstart+k,cell('',styNotes()));
+          if(w>1){
+            merges.push({s:{r:R,c:cstart},e:{r:R,c:cstart+w-1}});
+            merges.push({s:{r:R2,c:cstart},e:{r:R2,c:cstart+w-1}});
+          }
+          topHtml+=`<td class="ev" colspan="${w}"></td>`;
+          botHtml+=`<td class="note" colspan="${w}"></td>`;
         } else if(evs.length===1){
           const ev=evs[0], d=ev.date;
-          set(R,cstart,cell(fmtDate(d),styDate(d)));
-          set(R2,cstart,cell(fmtVal(ev.val),styVal(d)));
-          for(let k=1;k<w;k++){ set(R,cstart+k,cell('',styDate(d))); set(R2,cstart+k,cell('',styVal(d))); }
-          if(w>1){ merges.push({s:{r:R,c:cstart},e:{r:R,c:cstart+w-1}}); merges.push({s:{r:R2,c:cstart},e:{r:R2,c:cstart+w-1}}); }
+          set(R,cstart,cell(evText(ev),styEvent(d)));
+          set(R2,cstart,cell('',styNotes()));
+          for(let k=1;k<w;k++){ set(R,cstart+k,cell('',styEvent(d))); set(R2,cstart+k,cell('',styNotes())); }
+          if(w>1){
+            merges.push({s:{r:R,c:cstart},e:{r:R,c:cstart+w-1}});
+            merges.push({s:{r:R2,c:cstart},e:{r:R2,c:cstart+w-1}});
+          }
           const bg=bgStr(d);
-          topHtml+=`<td class="ev" style="border-bottom:none;${bg}" colspan="${w}">${esc(fmtDate(d))}</td>`;
-          botHtml+=`<td class="ev" style="border-top:none;${bg}" colspan="${w}">${esc(fmtVal(ev.val))}</td>`;
+          topHtml+=`<td class="ev" style="${bg}" colspan="${w}">${esc(fmtDate(d))}<br>${esc(fmtVal(ev.val))}</td>`;
+          botHtml+=`<td class="note" colspan="${w}"></td>`;
         } else {
-          // více událostí v jednom roce: datum nahoře, známka přesně pod ním
-          const last=evs[evs.length-1];
+          // více událostí v jednom roce: každá má vlastní sloupec (datum+známka nahoře, poznámka dole)
           for(let k=0;k<w;k++){
             const ev=(k<evs.length)?evs[k]:null;
-            const d=ev?ev.date:last.date;
-            set(R,cstart+k,cell(ev?fmtDate(ev.date):'',styDate(d)));
-            set(R2,cstart+k,cell(ev?fmtVal(ev.val):'',styVal(d)));
+            const d=ev?ev.date:evs[evs.length-1].date;
+            set(R,cstart+k,cell(ev?evText(ev):'',ev?styEvent(d):styEmpty()));
+            set(R2,cstart+k,cell('',styNotes()));
           }
           if(evs.length<w){
             merges.push({s:{r:R,c:cstart+evs.length-1},e:{r:R,c:cstart+w-1}});
             merges.push({s:{r:R2,c:cstart+evs.length-1},e:{r:R2,c:cstart+w-1}});
           }
-          evs.forEach(ev=>{ const bg=bgStr(ev.date);
-            topHtml+=`<td class="ev" style="border-bottom:none;${bg}">${esc(fmtDate(ev.date))}</td>`;
-            botHtml+=`<td class="ev" style="border-top:none;${bg}">${esc(fmtVal(ev.val))}</td>`;
+          evs.forEach((ev,i)=>{ const bg=bgStr(ev.date);
+            const span=(i===evs.length-1 && evs.length<w)?(w-evs.length+1):1;
+            const cs=span>1?` colspan="${span}"`:'';
+            topHtml+=`<td class="ev" style="${bg}"${cs}>${esc(fmtDate(ev.date))}<br>${esc(fmtVal(ev.val))}</td>`;
+            botHtml+=`<td class="note"${cs}></td>`;
           });
-          for(let k=evs.length;k<w;k++){ topHtml+='<td class="ev" style="border-bottom:none"></td>'; botHtml+='<td class="ev" style="border-top:none"></td>'; }
         }
       });
       topHtml+='</tr>'; botHtml+='</tr>';
       html+=topHtml+botHtml;
-      rowH[R]=15; rowH[R2]=15;
+      rowH[R]=28;   // horní: dvě řádky textu (datum + známka)
+      rowH[R2]=16;  // spodní: prostor na poznámky
       R+=2;
     });
   });
@@ -666,7 +677,7 @@ function makeSheet(K,koljLabel,summaryRows){
   ws['!merges']=merges;
   // column widths
   const cols=[{wch:16}]; for(let c=1;c<totalCols;c++)cols.push({wch:11}); ws['!cols']=cols;
-  // row heights — ensure two-line event cells (date + value) fully fit
+  // row heights — horní řádek musí vejít datum+známka, spodní je na poznámky
   const rows=[]; for(let r=0;r<=maxR;r++){ rows[r]={hpt:rowH[r]||28}; } ws['!rows']=rows;
   return {ws,html};
 }
