@@ -155,13 +155,14 @@
   .tab{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 15px;cursor:pointer;
     font:inherit;font-size:13.5px;color:var(--muted)}
   .tab.on{background:var(--steel);color:#fff;border-color:var(--steel)}
-  .preview-wrap{overflow:auto;border:1px solid var(--line-soft);border-radius:10px;background:#fff;max-height:560px}
+  .preview-wrap{overflow:auto;border:1px solid var(--line-soft);border-radius:10px;background:#fff;max-height:560px;padding:12px 16px}
   table.xl{border-collapse:collapse;font-size:11px;font-family:'Space Mono',monospace;white-space:nowrap}
   table.xl td{border:1px solid #d9d5c8;padding:3px 6px;text-align:center;vertical-align:middle;min-width:34px}
-  table.xl td.km{text-align:left;background:#faf8f2;font-weight:700;min-width:120px}
+  table.xl td.km{text-align:left;background:#fff;font-weight:700;min-width:132px;padding:4px 10px 4px 14px}
   table.xl td.sec{text-align:left;background:var(--steel);color:#fff;font-family:'Space Grotesk';
     font-weight:700;font-size:12.5px;letter-spacing:.02em}
   table.xl td.yr{background:#eceadf;font-weight:700}
+  table.xl td.km-hdr{text-align:left;padding-left:14px}
   table.xl td.ev{line-height:1.25;font-size:10px;white-space:pre-line;min-width:72px}
   table.xl td.note{background:#fff;min-height:16px;height:18px;padding:2px 6px}
   table.xl td.r3{background:#f4b0a8}
@@ -554,7 +555,8 @@ function styEmpty(){return {border:BORDER};}
 // spodní řádek — prázdný prostor na ruční poznámky (bílé pozadí, jen mřížka)
 function styNotes(){return {border:BORDER,fill:{fgColor:{rgb:'FFFFFF'}}};}
 function bgStr(date){const h=dateHex(date);return h?`background:#${h}`:'';}
-function styKm(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'left',vertical:'center'},border:BORDER,fill:{fgColor:{rgb:'FAF8F2'}}};}
+function styKm(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'left',vertical:'center',indent:2},border:BORDER,fill:{fgColor:{rgb:'FFFFFF'}}};}
+function styKmHdr(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'left',vertical:'center',indent:2},border:BORDER,fill:{fgColor:{rgb:'ECEADF'}}};}
 function styYear(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'center',vertical:'center'},border:BORDER,fill:{fgColor:{rgb:'ECEADF'}}};}
 function stySection(){return {font:{name:F,sz:11,bold:true,color:{rgb:'FFFFFF'}},alignment:{horizontal:'left',vertical:'center'},fill:{fgColor:{rgb:'1B2430'}}};}
 function evText(ev){return fmtDate(ev.date)+'\n'+fmtVal(ev.val);}
@@ -581,8 +583,8 @@ function makeSheet(K,koljLabel,summaryRows){
     rowH[R]=20; R++;
 
     // year header row
-    set(R,0,cell('km úsek',styYear()));
-    html+='<tr><td class="yr">km úsek</td>';
+    set(R,0,cell('km úsek',styKmHdr()));
+    html+='<tr><td class="yr km-hdr">km úsek</td>';
     years.forEach(y=>{
       const cstart=yearStart[y], w=width[y];
       set(R,cstart,cell(y,styYear()));
@@ -676,7 +678,7 @@ function makeSheet(K,koljLabel,summaryRows){
   ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:maxR,c:maxC}});
   ws['!merges']=merges;
   // column widths
-  const cols=[{wch:16}]; for(let c=1;c<totalCols;c++)cols.push({wch:11}); ws['!cols']=cols;
+  const cols=[{wch:18}]; for(let c=1;c<totalCols;c++)cols.push({wch:11}); ws['!cols']=cols;
   // row heights — horní řádek musí vejít datum+známka, spodní je na poznámky
   const rows=[]; for(let r=0;r<=maxR;r++){ rows[r]={hpt:rowH[r]||28}; } ws['!rows']=rows;
   return {ws,html};
