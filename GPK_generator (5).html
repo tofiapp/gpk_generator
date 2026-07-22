@@ -155,14 +155,27 @@
   .tab{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 15px;cursor:pointer;
     font:inherit;font-size:13.5px;color:var(--muted)}
   .tab.on{background:var(--steel);color:#fff;border-color:var(--steel)}
-  .preview-wrap{overflow:auto;border:1px solid var(--line-soft);border-radius:10px;background:#fff;max-height:560px;padding:12px 16px}
-  table.xl{border-collapse:collapse;font-size:11px;font-family:'Space Mono',monospace;white-space:nowrap}
+  .preview-wrap{overflow:auto;border:1px solid var(--line-soft);border-radius:10px;background:var(--paper);max-height:560px}
+  .xl-stack{display:flex;flex-direction:column;gap:22px;padding:14px 16px;--xl-sec-h:34px}
+  table.xl{
+    border-collapse:separate;border-spacing:0;font-size:11px;
+    font-family:'Space Mono',monospace;white-space:nowrap;background:#fff;
+  }
   table.xl td{border:1px solid #d9d5c8;padding:3px 6px;text-align:center;vertical-align:middle;min-width:34px}
-  table.xl td.km{text-align:left;background:#fff;font-weight:700;min-width:132px;padding:4px 10px 4px 14px}
-  table.xl td.sec{text-align:left;background:var(--steel);color:#fff;font-family:'Space Grotesk';
-    font-weight:700;font-size:12.5px;letter-spacing:.02em}
+  /* invertovaný kontrast vůči barevným buňkám: světlý text na ocelovém pozadí */
+  table.xl td.km{
+    text-align:left;background:var(--steel);color:var(--paper);font-weight:700;
+    min-width:132px;padding:4px 10px 4px 14px;
+  }
+  table.xl td.sec{
+    text-align:left;background:var(--steel);color:#fff;font-family:'Space Grotesk';
+    font-weight:700;font-size:12.5px;letter-spacing:.02em;padding:8px 12px;
+  }
+  table.xl thead td.sec{position:sticky;top:0;z-index:5;box-shadow:0 1px 0 #1b2430}
+  table.xl thead td.yr,
+  table.xl thead td.km-hdr{position:sticky;top:var(--xl-sec-h);z-index:4;box-shadow:0 1px 0 #d9d5c8}
   table.xl td.yr{background:#eceadf;font-weight:700}
-  table.xl td.km-hdr{text-align:left;padding-left:14px}
+  table.xl td.km-hdr{text-align:left;padding-left:14px;background:#eceadf;color:var(--ink)}
   table.xl td.ev{line-height:1.25;font-size:10px;white-space:pre-line;min-width:72px}
   table.xl td.note{background:#fff;min-height:16px;height:18px;padding:2px 6px}
   table.xl td.r3{background:#f4b0a8}
@@ -220,7 +233,7 @@
       <summary>
         <span class="chev">▸</span>
         <span>Popisky úseků</span>
-        <span id="mapBadge" class="badge ok" style="margin-left:auto">načteno</span>
+        <span id="mapBadge" class="badge ok" style="margin-left:auto">načtěte soubory</span>
       </summary>
       <div class="map-body">
         <table class="mp" id="mapTable">
@@ -230,7 +243,8 @@
       </div>
     </details>
     <p style="color:var(--muted);font-size:13px;margin:10px 2px 0">
-      Neznámé kódy se doplní automaticky a zvýrazní žlutě — doplňte jim název.
+      Skupina i název se načtou z nahraných souborů (sloupce u dat nebo list číselníku).
+      Chybějící názvy se zvýrazní žlutě — můžete je doplnit ručně.
     </p>
   </section>
 
@@ -262,51 +276,12 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ============================================================
-   Číselník: kód -> {group, name}. Předvyplněno z vašich dat.
-   ============================================================ */
-const DEFAULT_MAP = {
-  "1501A1":{g:"1501A1",n:"žst. Česká Třebová os.n."},
-  "1501A3":{g:"1501A1",n:"žst. Česká Třebová os.n."},
-  "150102":{g:"150102",n:"Česká Třebová os.n. - Dlouhá Třebová"},
-  "150144":{g:"150102",n:"Česká Třebová os.n. - Dlouhá Třebová"},
-  "1501B1":{g:"1501B1",n:"žst. Dlouhá Třebová"},
-  "150104":{g:"150104",n:"Dlouhá Třebová - Ústí nad Orlicí"},
-  "1501C1":{g:"1501C1",n:"žst. Ústí nad Orlicí"},
-  "150106":{g:"150106",n:"Ústí nad Orlicí - Bezpráví"},
-  "1501X1":{g:"1501X1",n:"odb. Bezpráví"},
-  "150146":{g:"150146",n:"Bezpráví - Brandýs nad Orlicí"},
-  "1501D1":{g:"1501D1",n:"žst. Brandýs nad Orlicí"},
-  "150108":{g:"150108",n:"Brandýs nad Orlicí - Choceň"},
-  "1501E1":{g:"1501E1",n:"žst. Choceň"},
-  "150110":{g:"150110",n:"Choceň - Zámrsk"},
-  "1501F1":{g:"1501F1",n:"žst. Zámrsk"},
-  "150112":{g:"150112",n:"Zámrsk - Uhersko"},
-  "1501G1":{g:"1501G1",n:"žst. Uhersko"},
-  "150114":{g:"150114",n:"Uhersko - Moravany"},
-  "1501H1":{g:"1501H1",n:"žst. Moravany"},
-  "1501H3":{g:"1501H1",n:"žst. Moravany"},
-  "150116":{g:"150116",n:"Moravany - Kostěnice"},
-  "1501I1":{g:"1501I1",n:"žst. Kostěnice"},
-  "150118":{g:"150118",n:"Kostěnice - Pardubice hl.n."},
-  "1501J1":{g:"1501J1",n:"žst. Pardubice hl.n."},
-  "1501J3":{g:"1501J1",n:"žst. Pardubice hl.n."},
-  "150120":{g:"150120",n:"Pardubice hl.n. - Přelouč"},
-  "1501K1":{g:"1501K1",n:"žst. Přelouč (kolej č.102)"},
-  "1501K3":{g:"1501K1",n:"žst. Přelouč (kolej č.102)"},
-  "150122":{g:"150122",n:"Přelouč - Řečany nad Labem"},
-  "1501L1":{g:"1501L1",n:"žst. Řečany nad Labem"},
-  "150124":{g:"150124",n:"Řečany nad Labem - Záboří nad Labem"},
-  "1501M1":{g:"1501M1",n:"žst. Záboří nad Labem"},
-  "150126":{g:"150126",n:"Záboří nad Labem - Kolín"}
-};
-
 /* ---- track diagram ties in header ---- */
 (function(){const r=document.getElementById('rail');for(let i=0;i<80;i++){const t=document.createElement('div');t.className='tie';r.appendChild(t);}})();
 
 /* ---- state ---- */
-let FILES = [];           // {id,name,kolej:'1'|'2'|'x', rows:[...]}
-let MAP = JSON.parse(JSON.stringify(DEFAULT_MAP));
+let FILES = [];           // {id,name,kolej:'1'|'2'|'x', rows:[...], map:{}}
+let MAP = {};             // kód -> {g, n, unknown?, manual?}  — plní se z nahraných souborů
 let workbook = null;
 let previewData = null;   // {k1:tableHtml, k2:..., sum:...}
 let uid = 0;
@@ -334,11 +309,136 @@ async function handleFiles(fileList){
   for(const f of fileList){
     if(!/\.xlsm?$|\.xlsx$/i.test(f.name)){toast('Přeskočeno (není .xlsx): '+f.name,true);continue;}
     try{
-      const rows = await parseWorkbook(f);
-      FILES.push({id:++uid,name:f.name,kolej:detectKolej(f.name),rows});
+      const parsed = await parseWorkbook(f);
+      FILES.push({id:++uid,name:f.name,kolej:detectKolej(f.name),rows:parsed.rows,map:parsed.map});
     }catch(e){console.error(e);toast('Chyba čtení: '+f.name,true);}
   }
   renderFiles(); refreshMapFromData(); updateReady();
+}
+
+function toNum(v){if(v==null||v==='')return null;if(typeof v==='number')return v;const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?null:n;}
+function toDate(v){
+  if(v==null||v==='')return null;
+  if(v instanceof Date){return isNaN(v.getTime())?null:v;}
+  if(typeof v==='number'){
+    // Excel serial (typicky >20000); malá čísla = km / známky, ne datum
+    if(v<2000) return null;
+    const d=new Date(Math.round((v-25569)*86400*1000)); return isNaN(d)?null:d;
+  }
+  const s=String(v).trim();
+  // DD.MM.YYYY / DD/MM/YYYY
+  const m=s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+  if(m){const d=new Date(+m[3],+m[2]-1,+m[1]); return isNaN(d)?null:d;}
+  const d=new Date(s); return isNaN(d)?null:d;
+}
+function cellStr(v){return (v==null||v==='')?'':String(v).trim();}
+function looksLikeCode(v){
+  const s=cellStr(v);
+  return /^[0-9]{3,5}[A-Za-z0-9]*$/.test(s);
+}
+function looksLikeKm(v){
+  const n=toNum(v);
+  return n!=null && n>=0 && n<2000;
+}
+function isHeaderish(v){
+  const s=cellStr(v).toLowerCase();
+  if(!s) return false;
+  return /k[oó]d|tudu|n[aá]zev|seskup|group|km|úsek|usek|od\b|do\b|trat|trať/.test(s);
+}
+function sheetToAoa(ws){return XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});}
+
+/** Najde index dvojice km-od / km-do v řádku. */
+function findKmPairIndex(row){
+  for(let i=1;i<row.length-1;i++){
+    if(!looksLikeKm(row[i]) || !looksLikeKm(row[i+1])) continue;
+    const after=row[i+2];
+    if(after==null || after==='' || toDate(after)!=null || !looksLikeKm(after)) return i;
+  }
+  return -1;
+}
+
+function parseEventsFrom(row, startCol){
+  const events=[];
+  for(let c=startCol;c<row.length;c+=2){
+    const d=toDate(row[c]); const v=toNum(row[c+1]);
+    if(d==null) break;
+    events.push({date:d,val:v});
+  }
+  return events;
+}
+
+/** Data řádek: kód [| skupina] [| název] | km_od | km_do | datum | hodnota | … */
+function parseDataRow(row){
+  if(!row||row[0]==null||row[0]==='') return null;
+  const code=cellStr(row[0]);
+  if(!code || isHeaderish(code)) return null;
+  const kmIdx=findKmPairIndex(row);
+  if(kmIdx<0) return null;
+  const ks=toNum(row[kmIdx]), ke=toNum(row[kmIdx+1]);
+  if(ks==null) return null;
+
+  let g=code, n='';
+  const mid=row.slice(1, kmIdx).map(cellStr).filter(Boolean);
+  if(mid.length===1){
+    if(looksLikeCode(mid[0])) g=mid[0];
+    else n=mid[0];
+  } else if(mid.length>=2){
+    if(looksLikeCode(mid[0])){ g=mid[0]; n=mid.slice(1).join(' '); }
+    else n=mid.join(' ');
+  }
+
+  return {code,ks,ke,events:parseEventsFrom(row, kmIdx+2),g,n};
+}
+
+function mergeMapEntry(dst, src){
+  if(!src) return dst;
+  const out=dst?{...dst}:{g:'',n:''};
+  if(src.g) out.g=src.g;
+  if(src.n && String(src.n).trim()) out.n=String(src.n).trim();
+  return out;
+}
+
+/** List číselníku: kód | skupina | název  nebo  kód | název */
+function extractMapFromAoa(aoa, into){
+  if(!aoa||!aoa.length) return 0;
+  let added=0;
+  let start=0;
+  const h0=cellStr(aoa[0]&&aoa[0][0]).toLowerCase();
+  const h1=cellStr(aoa[0]&&aoa[0][1]).toLowerCase();
+  const h2=cellStr(aoa[0]&&aoa[0][2]).toLowerCase();
+  let mode='auto'; // 'gn' = g+n, 'n' = jen název
+  if(isHeaderish(h0) || isHeaderish(h1) || isHeaderish(h2)){
+    start=1;
+    const hasGroup=/seskup|group|skup/.test(h1);
+    const hasName=/n[aá]zev|name|popis|úsek|usek/.test(h1)||/n[aá]zev|name|popis/.test(h2);
+    if(hasGroup) mode='gn';
+    else if(hasName) mode='n';
+  }
+  for(let i=start;i<aoa.length;i++){
+    const row=aoa[i];
+    if(!row||row[0]==null||row[0]==='') continue;
+    if(findKmPairIndex(row)>=0) continue; // datový řádek, ne číselník
+    const code=cellStr(row[0]);
+    if(!looksLikeCode(code) && !/^[0-9A-Za-z]{4,12}$/.test(code)) continue;
+    let g=code, n='';
+    const c1=cellStr(row[1]), c2=cellStr(row[2]);
+    if(mode==='gn' || (mode==='auto' && c2 && looksLikeCode(c1))){
+      if(c1) g=c1;
+      if(c2) n=c2;
+    } else if(c1){
+      if(looksLikeCode(c1) && !c2) g=c1;
+      else if(looksLikeCode(c1) && c2){ g=c1; n=c2; }
+      else n=c1;
+    }
+    if(!n && !c1 && !c2) continue;
+    into[code]=mergeMapEntry(into[code], {g,n});
+    added++;
+  }
+  return added;
+}
+
+function isMapSheetName(name){
+  return /č[ií]sel|ciseln|map|popis|n[aá]zev|úsek|usek|tudu|skup|group|legend/i.test(name||'');
 }
 
 function parseWorkbook(file){
@@ -347,48 +447,51 @@ function parseWorkbook(file){
     r.onload=e=>{
       try{
         const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
-        // prefer sheet 'List1', else first
-        const wsName = wb.SheetNames.includes('List1')?'List1':wb.SheetNames[0];
-        const ws=wb.Sheets[wsName];
-        const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+        const map={};
         const rows=[];
-        for(const r of aoa){
-          if(!r||r[0]==null||r[0]==='') continue;
-          const code=String(r[0]).trim();
-          const ks=toNum(r[1]), ke=toNum(r[2]);
-          if(ks==null) continue;
-          const events=[];
-          for(let c=3;c<r.length;c+=2){
-            const d=toDate(r[c]); const v=toNum(r[c+1]);
-            if(d==null) break;
-            events.push({date:d,val:v});
+        const sheets=wb.SheetNames.slice();
+
+        // 1) číselník ze všech listů (priorita podle názvu listu)
+        const mapSheets=sheets.filter(isMapSheetName);
+        const otherSheets=sheets.filter(n=>!isMapSheetName(n));
+        [...mapSheets, ...otherSheets].forEach(name=>{
+          extractMapFromAoa(sheetToAoa(wb.Sheets[name]), map);
+        });
+
+        // 2) data — List1, jinak první list s datovými řádky
+        let dataName=sheets.includes('List1')?'List1':null;
+        const tryNames=dataName?[dataName, ...sheets.filter(n=>n!==dataName)]:sheets;
+        for(const name of tryNames){
+          const aoa=sheetToAoa(wb.Sheets[name]);
+          const parsed=[];
+          for(const row of aoa){
+            const d=parseDataRow(row);
+            if(d) parsed.push(d);
           }
-          rows.push({code,ks,ke,events});
+          if(parsed.length){
+            parsed.forEach(d=>{
+              rows.push({code:d.code,ks:d.ks,ke:d.ke,events:d.events});
+              if(d.g||d.n) map[d.code]=mergeMapEntry(map[d.code], {g:d.g||d.code, n:d.n||''});
+            });
+            break;
+          }
         }
-        res(rows);
+        res({rows, map});
       }catch(err){rej(err);}
     };
     r.onerror=rej; r.readAsArrayBuffer(file);
   });
-}
-function toNum(v){if(v==null||v==='')return null;if(typeof v==='number')return v;const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?null:n;}
-function toDate(v){
-  if(v==null||v==='')return null;
-  if(v instanceof Date)return v;
-  if(typeof v==='number'){ // excel serial
-    const d=new Date(Math.round((v-25569)*86400*1000)); return isNaN(d)?null:d;
-  }
-  const d=new Date(v); return isNaN(d)?null:d;
 }
 
 function renderFiles(){
   const ul=$('#fileList'); ul.innerHTML='';
   FILES.forEach(f=>{
     const n=f.rows.length;
+    const mapN=f.map?Object.keys(f.map).length:0;
     const li=document.createElement('li'); li.className='file-row';
     li.innerHTML=`
       <span class="name" title="${f.name}">${f.name}</span>
-      <span class="meta">${n} úseků</span>
+      <span class="meta">${n} úseků${mapN?` · ${mapN} popisků`:''}</span>
       <span class="seg" data-id="${f.id}">
         <button data-k="1" class="${f.kolej==='1'?'on':''}">Kolej 1</button>
         <button data-k="2" class="${f.kolej==='2'?'on k2':''}">Kolej 2</button>
@@ -399,27 +502,57 @@ function renderFiles(){
       const b=e.target.closest('button[data-k]'); if(!b)return;
       f.kolej=b.dataset.k; renderFiles(); updateReady();
     });
-    li.querySelector('.x').addEventListener('click',()=>{FILES=FILES.filter(x=>x.id!==f.id);renderFiles();updateReady();});
+    li.querySelector('.x').addEventListener('click',()=>{
+      FILES=FILES.filter(x=>x.id!==f.id);
+      renderFiles(); refreshMapFromData(); updateReady();
+    });
     ul.appendChild(li);
   });
 }
 
 /* ================= mapping table ================= */
 function refreshMapFromData(){
-  // add any unknown codes from loaded files
+  const fromFiles={};
+  FILES.forEach(f=>{
+    Object.entries(f.map||{}).forEach(([code,m])=>{
+      fromFiles[code]=mergeMapEntry(fromFiles[code], m);
+    });
+    f.rows.forEach(r=>{
+      // pokud řádek přinesl g/n, už jsou ve f.map; pojistka:
+      if(!fromFiles[r.code]) fromFiles[r.code]={g:r.code,n:''};
+    });
+  });
+
   const seen=new Set();
   FILES.forEach(f=>f.rows.forEach(r=>seen.add(r.code)));
-  seen.forEach(code=>{ if(!MAP[code]) MAP[code]={g:code,n:'',unknown:true}; });
+
+  const next={};
+  const allCodes=new Set([...seen, ...Object.keys(fromFiles)]);
+  allCodes.forEach(code=>{
+    const prev=MAP[code];
+    const file=fromFiles[code];
+    if(prev && prev.manual){
+      next[code]={...prev};
+      return;
+    }
+    const g=(file&&file.g)||(prev&&prev.g)||code;
+    const n=(file&&file.n)||(prev&&prev.n)||'';
+    next[code]={g, n, unknown:!n};
+  });
+  MAP=next;
   renderMap(seen);
 }
 function renderMap(seenSet){
   const tb=$('#mapTable tbody'); tb.innerHTML='';
   const seen = seenSet || new Set(FILES.flatMap(f=>f.rows.map(r=>r.code)));
   let unknownCount=0;
-  const codes=Object.keys(MAP).sort();
+  const codes=Object.keys(MAP).sort((a,b)=>{
+    const ua=seen.has(a)?0:1, ub=seen.has(b)?0:1;
+    return ua-ub || a.localeCompare(b,'cs');
+  });
   codes.forEach(code=>{
     const m=MAP[code];
-    const isUnknown = m.unknown && (!m.n || m.n.trim()==='');
+    const isUnknown = !m.n || m.n.trim()==='';
     if(isUnknown && seen.has(code)) unknownCount++;
     const tr=document.createElement('tr');
     if(isUnknown && seen.has(code)) tr.className='unknown';
@@ -432,12 +565,15 @@ function renderMap(seenSet){
   tb.querySelectorAll('input').forEach(inp=>{
     inp.addEventListener('input',e=>{
       const c=e.target.dataset.code, fld=e.target.dataset.f;
+      if(!MAP[c]) MAP[c]={g:c,n:''};
       MAP[c][fld]=e.target.value;
-      if(fld==='n' && e.target.value.trim()) MAP[c].unknown=false;
+      MAP[c].manual=true;
+      if(fld==='n') MAP[c].unknown=!e.target.value.trim();
     });
   });
   const badge=$('#mapBadge');
-  if(unknownCount>0){badge.className='badge warn';badge.textContent=unknownCount+' bez názvu';$('#mapDetails').open=true;}
+  if(!Object.keys(MAP).length){badge.className='badge ok';badge.textContent='načtěte soubory';}
+  else if(unknownCount>0){badge.className='badge warn';badge.textContent=unknownCount+' bez názvu';$('#mapDetails').open=true;}
   else{badge.className='badge ok';badge.textContent=Object.keys(MAP).length+' kódů';}
 }
 
@@ -555,8 +691,9 @@ function styEmpty(){return {border:BORDER};}
 // spodní řádek — prázdný prostor na ruční poznámky (bílé pozadí, jen mřížka)
 function styNotes(){return {border:BORDER,fill:{fgColor:{rgb:'FFFFFF'}}};}
 function bgStr(date){const h=dateHex(date);return h?`background:#${h}`:'';}
-function styKm(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'left',vertical:'center',indent:2},border:BORDER,fill:{fgColor:{rgb:'FFFFFF'}}};}
+function styKm(){return {font:{name:F,sz:9,bold:true,color:{rgb:'F5F3EC'}},alignment:{horizontal:'left',vertical:'center',indent:2},border:BORDER,fill:{fgColor:{rgb:'1B2430'}}};}
 function styKmHdr(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'left',vertical:'center',indent:2},border:BORDER,fill:{fgColor:{rgb:'ECEADF'}}};}
+function styGap(){return {fill:{fgColor:{rgb:'F5F3EC'}}};}
 function styYear(){return {font:{name:F,sz:9,bold:true},alignment:{horizontal:'center',vertical:'center'},border:BORDER,fill:{fgColor:{rgb:'ECEADF'}}};}
 function stySection(){return {font:{name:F,sz:11,bold:true,color:{rgb:'FFFFFF'}},alignment:{horizontal:'left',vertical:'center'},fill:{fgColor:{rgb:'1B2430'}}};}
 function evText(ev){return fmtDate(ev.date)+'\n'+fmtVal(ev.val);}
@@ -569,30 +706,43 @@ function makeSheet(K,koljLabel,summaryRows){
   const set=(r,c,cel)=>{cells[r+','+c]=cel;};
   let R=0;
 
-  // preview html
-  let html='<table class="xl">';
+  // preview: každá hlavička = vlastní tabulka (mezera + sticky thead při scrollu)
+  let html='<div class="xl-stack">';
 
-  order.forEach(gc=>{
+  order.forEach((gc,gi)=>{
     const name=nameOf(gc);
     const title='  '+gc+'  –  '+name;
+
+    // v XLSX mezera mezi sekcemi s různou hlavičkou
+    if(gi>0){
+      for(let c=0;c<totalCols;c++) set(R,c,cell('',styGap()));
+      rowH[R]=10; R++;
+    }
+
     // section header row (merged across all cols)
     set(R,0,cell(title,stySection()));
     for(let c=1;c<totalCols;c++) set(R,c,cell('',stySection()));
     merges.push({s:{r:R,c:0},e:{r:R,c:totalCols-1}});
-    html+=`<tr><td class="sec" colspan="${totalCols}">${esc(title)}</td></tr>`;
     rowH[R]=20; R++;
 
     // year header row
     set(R,0,cell('km úsek',styKmHdr()));
-    html+='<tr><td class="yr km-hdr">km úsek</td>';
     years.forEach(y=>{
       const cstart=yearStart[y], w=width[y];
       set(R,cstart,cell(y,styYear()));
       for(let k=1;k<w;k++) set(R,cstart+k,cell('',styYear()));
       if(w>1) merges.push({s:{r:R,c:cstart},e:{r:R,c:cstart+w-1}});
-      html+=`<td class="yr" colspan="${w}">${y}</td>`;
     });
-    html+='</tr>'; rowH[R]=18; R++;
+    rowH[R]=18; R++;
+
+    // HTML: samostatná tabulka sekce — hlavičky ve <thead> (sticky)
+    let yrHtml='<tr><td class="yr km-hdr">km úsek</td>';
+    years.forEach(y=>{
+      const w=width[y];
+      yrHtml+=`<td class="yr" colspan="${w}">${y}</td>`;
+    });
+    yrHtml+='</tr>';
+    let bodyHtml='';
 
     // data rows — každý úsek = DVA řádky:
     //   horní: hodnoty (datum + známka v jedné buňce),
@@ -659,13 +809,18 @@ function makeSheet(K,koljLabel,summaryRows){
         }
       });
       topHtml+='</tr>'; botHtml+='</tr>';
-      html+=topHtml+botHtml;
+      bodyHtml+=topHtml+botHtml;
       rowH[R]=28;   // horní: dvě řádky textu (datum + známka)
       rowH[R2]=16;  // spodní: prostor na poznámky
       R+=2;
     });
+
+    html+=`<table class="xl"><thead>`+
+      `<tr><td class="sec" colspan="${totalCols}">${esc(title)}</td></tr>`+
+      yrHtml+
+      `</thead><tbody>${bodyHtml}</tbody></table>`;
   });
-  html+='</table>';
+  html+='</div>';
 
   // build worksheet
   const ws={};
